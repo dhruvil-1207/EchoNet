@@ -11,21 +11,21 @@ Instead of relying on black-box commercial APIs, EchoNet orchestrates a custom R
 * **Custom Acoustic Core:** A deep learning architecture engineered in PyTorch—no pre-trained model wrappers or external APIs.
 * **Multilingual Transcription:** Built to process both English and Hindi vocal sequences.
 * **Noise Resilient:** Specifically tested against common ambient conditions like fan noise, street traffic, keyboard typing, and background conversations.
-* **Utility Tools:** One-click copy transcript to clipboard and local `.txt` file export.
+* **Utility Tools:** One-click copy transcript to clipboard and local `.txt` file export
 
 ---
 
 ## 📐 System Architecture & Data Flow
-1. **Frontend Layer:** Built with React, it requests secure microphone permissions, records audio chunks, compiles them into a binary `Blob`, and transmits a `FormData` object to the backend[cite: 8, 15, 17, 24].
-2. **Backend Gateway:** Built with FastAPI, the server accepts the file, converts the raw audio stream into a normalized 16kHz matrix, and extracts frequency dimensions[cite: 17, 20].
+1. **Frontend Layer:** Built with React, it requests secure microphone permissions, records audio chunks, compiles them into a binary `Blob`, and transmits a `FormData` object to the backend.
+2. **Backend Gateway:** Built with FastAPI, the server accepts the file, converts the raw audio stream into a normalized 16kHz matrix, and extracts frequency dimensions.
 3. **Acoustic Model:** A custom PyTorch `nn.Module` consisting of a linear projection layer, multi-layer Bidirectional Gate Recurrent Units (GRUs), and a character softmax classifier evaluated via CTC Loss.
 
 ---
 
 ## 🛠️ Tech Stack
-* **Frontend:** React.js, Axios, HTML5 Media Stream APIs [cite: 17]
-* **Backend:** FastAPI, Uvicorn, Python-Multipart [cite: 17]
-* **Machine Learning Core:** PyTorch, Torchaudio [cite: 18]
+* **Frontend:** React.js (Vite), Axios, HTML5 Media Stream APIs 
+* **Backend:** FastAPI, Uvicorn, Python-Multipart 
+* **Machine Learning Core:** PyTorch, Torchaudio 
 
 ---
 
@@ -51,8 +51,9 @@ cd ../frontend
 npm install
 ```
 Open src/config.js (or your preferred environment manager) and verify the backend pointer:
-JavaScript
+```JavaScript
 export const API_BASE_URL = "http://localhost:8000";
+```
 ```bash
-npm start
+npm run dev
 ```
