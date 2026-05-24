@@ -1,0 +1,130 @@
+/* ==========================================================================
+   1. Browser Reset & Full-Screen Canvas Layout
+   ========================================================================== */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #0b0f19; /* Deep space background underlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Base Layout Container - Spans the entire viewport area */
+.echonet-container {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 60px 40px;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background-color: #111827; /* Main dashboard surface background color */
+  color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   2. Typography & Status Layout Elements
+   ========================================================================== */
+.echonet-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px 0;
+  color: #6366f1;
+}
+
+.echonet-subtitle {
+  color: #9ca3af;
+  margin-bottom: 30px;
+}
+
+.status-recording {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.status-ready {
+  color: #10b981;
+  font-weight: bold;
+}
+
+/* ==========================================================================
+   3. Control Dashboard Interactive Buttons
+   ========================================================================== */
+.controls-wrapper {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #fff;
+  transition: background-color 0.2s ease;
+}
+
+.btn-start {
+  background-color: #4f46e5;
+}
+
+.btn-start:hover {
+  background-color: #4338ca;
+}
+
+.btn-stop {
+  background-color: #dc2626;
+}
+
+.btn-stop:hover {
+  background-color: #b91c1c;
+}
+
+.btn-utility {
+  background-color: #374151;
+}
+
+.btn-utility:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   4. Transcript Output Terminal Window
+   ========================================================================== */
+.transcript-header {
+  border-bottom: 1px solid #374151;
+  padding-bottom: 8px;
+  color: #e5e7eb;
+}
+
+.transcript-display {
+  flex-grow: 1; /* Instructs the text block container to fill out remaining screen space */
+  border: 1px solid #374151;
+  padding: 25px;
+  background-color: #1f2937;
+  border-radius: 8px;
+  line-height: 1.8;
+  font-size: 1.1rem;
+  white-space: pre-wrap;
+  overflow-y: auto; /* Adds a scrollbar automatically if the text gets very long */
+}
+
+.text-active {
+  color: #f3f4f6;
+}
+
+.text-placeholder {
+  color: #6b7280;
+}
