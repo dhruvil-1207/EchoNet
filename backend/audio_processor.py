@@ -3,30 +3,55 @@ import scipy.signal as signal
 import scipy.io.wavfile as wavfile
 import noisereduce as nr
 
+
 def apply_high_pass_filter(input_path, output_path):
-    # Read the raw array numbers from disk
+    # Read audio
     sample_rate, data = wavfile.read(input_path)
 
-    # Force a 1D vector matrix if it's stereo
+    # Convert stereo to mono
     if len(data.shape) > 1:
-        data = data[:, 0]
+        data = np.mean(data, axis=1)
 
-    b, a = signal.butter(N=4, Wn=(80.0 / (0.5 * sample_rate)), btype="high")
+    # Convert to float32
+    data = data.astype(np.float32)
 
-    # Run the filter over the data array numbers
-    filtered_data = signal.filtfilt(b, a, data) 
-    
-    denoised_data = nr.reduce_noise(
-        y=filtered_data, 
-        sr=sample_rate,
-        prop_decrease=0.85,            # Leaves 15% noise floor so voice transitions sound natural
-        n_std_thresh_stationary=1.5,   # Raises threshold to protect softer speech volumes
-        time_mask_smooth_ms=200         # 200ms smoothing window to prevent aggressive clamping
+    # Normalize audio
+    max_val = np.max(np.abs(data))
+    if max_val > 0:
+        data = data / max_val
+
+    # High-pass filter (remove rumble below ~80Hz)
+    cutoff = 80.0
+    nyquist = 0.5 * sample_rate
+
+    b, a = signal.butter(
+        N=4,
+        Wn=cutoff / nyquist,
+        btype="high"
     )
 
-    # Cast the numbers safely back to 16-bit integers
-    final_array = np.clip(denoised_data, -32768, 32767).astype(np.int16)
+    filtered_data = signal.filtfilt(b, a, data)
 
+    # Noise reduction
+    denoised_data = nr.reduce_noise(
+        y=filtered_data,
+        sr=sample_rate,
+        prop_decrease=0.75,
+        n_std_thresh_stationary=1.5,
+        time_mask_smooth_ms=200
+    )
 
-    # Flush the array to your enhanced file
-    wavfile.write(output_path, sample_rate, final_array)
+    # Prevent clipping
+    denoised_data = np.clip(denoised_data, -1.0, 1.0)
+
+    # Convert back to int16 WAV
+    final_audio = (denoised_data * 32767).astype(np.int16)
+
+    # Save
+    wavfile.write(
+        output_path,
+        sample_rate,
+        final_audio
+    )
+
+    print(f"Enhanced audio saved to: {output_path}")
