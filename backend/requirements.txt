@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydub
+faster-whisper
+numpy
+scipy
+noisereduce
+matplotlib

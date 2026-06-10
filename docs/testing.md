@@ -1,0 +1,1 @@
+![alt text](<High-pass cutoff tradeoff.png>)  
