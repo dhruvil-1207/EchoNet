@@ -1,0 +1,9 @@
+timestamp,function,duration_seconds
+2026-06-12 02:18:52.006448,apply_high_pass_filter,0.0024
+2026-06-12 02:18:54.551835,enhance_audio,6.2397
+2026-06-12 02:23:52.056664,apply_high_pass_filter,0.003
+2026-06-12 02:23:52.441363,enhance_audio,0.4013
+2026-06-12 02:31:44.433324,apply_high_pass_filter,0.0029
+2026-06-12 02:31:44.798029,enhance_audio,0.3834
+2026-06-12 02:34:16.259781,apply_high_pass_filter,0.0026,30720
+2026-06-12 02:34:16.620730,enhance_audio,0.3769,

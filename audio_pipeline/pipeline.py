@@ -4,14 +4,16 @@ import scipy.io.wavfile as wavfile
 from audio_pipeline.preprocessing.mono_converter import convert_to_mono
 from audio_pipeline.preprocessing.normalizer import normalize_audio
 from audio_pipeline.preprocessing.high_pass_filter import apply_high_pass_filter
-from audio_pipeline.denoising.rnnoise_reducer import reduce_noise
+from audio_pipeline.denoising.auto_noise_reducer import reduce_noise_auto
 from audio_pipeline.visualization.waveform import save_waveform
 from audio_pipeline.visualization.spectrogram import save_spectrogram
 
 from audio_pipeline.vad.vad_detector import detect_speech_segments
 from audio_pipeline.visualization.vad_visualizer import save_vad_visualization
 
+from backend.utils.profiler import profile
 
+@profile
 def enhance_audio(input_path, output_path, generate_visualizations=False):
 
     sample_rate, data = wavfile.read(input_path)
@@ -88,15 +90,9 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
 
     print("INPUT mean abs =", np.mean(np.abs(data)))
     print("Starting noise reduction...")
-    data = reduce_noise(data, sample_rate)
+    data = reduce_noise_auto(data, sample_rate, use_rnnoise=False)
     print("Noise reduction completed")
 
-    # Fix the NameError and normalize denoised signal
-    # data = data.astype(np.float32)
-    # peak = np.max(np.abs(data))
-    # print("peak =", peak)
-    # if peak > 0:
-    #     data = data / peak
 
     if generate_visualizations:
         save_waveform(

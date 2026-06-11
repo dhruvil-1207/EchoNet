@@ -5,7 +5,7 @@ import traceback
 
 rnnoise = RNNoise(sample_rate=48000)
 
-def reduce_noise(data, sample_rate):
+def reduce_noise_rnnoise(data, sample_rate):
     print(f"Input Samples (at {sample_rate}Hz): {len(data)}")
     print(f"Input dtype: {data.dtype}")
 

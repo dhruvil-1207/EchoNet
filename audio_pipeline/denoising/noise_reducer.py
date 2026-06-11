@@ -3,7 +3,7 @@ import noisereduce as nr
 NOISE_REDUCTION_STRENGTH = 0.75
 # Remove 75% of detected noise
 
-def reduce_noise(data, sample_rate):
+def reduce_noise_spectral(data, sample_rate):
     data = nr.reduce_noise(
         y=data,
         sr=sample_rate,

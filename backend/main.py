@@ -169,10 +169,7 @@ async def transcribe_speech(file: UploadFile = File(...)):
             print("\nSpeech Segments:")
             print(speech_segments)
 
-            chunks = extract_speech_chunks(
-                enhanced_audio,
-                speech_segments
-            )
+            chunks = [enhanced_audio]
 
             print("\nChunk Count:")
             print(len(chunks))
