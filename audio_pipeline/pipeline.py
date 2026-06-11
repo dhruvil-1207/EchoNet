@@ -4,8 +4,7 @@ import scipy.io.wavfile as wavfile
 from audio_pipeline.preprocessing.mono_converter import convert_to_mono
 from audio_pipeline.preprocessing.normalizer import normalize_audio
 from audio_pipeline.preprocessing.high_pass_filter import apply_high_pass_filter
-from audio_pipeline.denoising.noise_reducer import reduce_noise
-
+from audio_pipeline.denoising.rnnoise_reducer import reduce_noise
 from audio_pipeline.visualization.waveform import save_waveform
 from audio_pipeline.visualization.spectrogram import save_spectrogram
 
@@ -87,9 +86,17 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
             "High Pass Filter Output"
         )
 
+    print("INPUT mean abs =", np.mean(np.abs(data)))
     print("Starting noise reduction...")
     data = reduce_noise(data, sample_rate)
     print("Noise reduction completed")
+
+    # Fix the NameError and normalize denoised signal
+    # data = data.astype(np.float32)
+    # peak = np.max(np.abs(data))
+    # print("peak =", peak)
+    # if peak > 0:
+    #     data = data / peak
 
     if generate_visualizations:
         save_waveform(
@@ -106,8 +113,18 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
             "Denoised Audio"
         )
 
+    print("\nVAD INPUT INFO")
+    print("dtype:", data.dtype)
+    print("shape:", data.shape)
+    print("min:", np.min(data))
+    print("max:", np.max(data))
+    print("mean abs:", np.mean(np.abs(data)))
+
+    # Pass the normalized float32 directly to Silero VAD without scaling it down
+    vad_audio = data.astype(np.float32)
+
     speech_segments = detect_speech_segments(
-        data,
+        vad_audio,
         sample_rate
     )
 
@@ -123,10 +140,37 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
             "VAD Detection"
         )
 
-    data = np.clip(data, -1.0, 1.0)
+    print(type(data))
+    print(data.dtype)
+    print("\nBEFORE FINAL CONVERSION")
+    print("dtype:", data.dtype)
+    print("min:", np.min(data))
+    print("max:", np.max(data))
+    print("mean abs:", np.mean(np.abs(data)))
+    if data.dtype != np.int16:
 
-    data = (data * 32767).astype(np.int16)
+        data = np.clip(
+            data,
+            -1.0,
+            1.0
+        )
 
+        data = (
+            data * 32767
+        ).astype(np.int16)
+      
+    print("\nAFTER FINAL CONVERSION")
+    print("dtype:", data.dtype)
+    print("min:", np.min(data))
+    print("max:", np.max(data))
+    print("mean abs:", np.mean(np.abs(data)))
+
+    print("Before WAV Save:")
+    print(
+        data.dtype,
+        np.min(data),
+        np.max(data)
+    )
     wavfile.write(
         output_path,
         sample_rate,

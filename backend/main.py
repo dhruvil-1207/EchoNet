@@ -125,6 +125,7 @@ async def transcribe_speech(file: UploadFile = File(...)):
                 format="webm"
             )
 
+            # Exporting to 16000 Hz mono PCM
             my_audio_track.export(
                 input_file_node,
                 format="wav",
@@ -144,7 +145,7 @@ async def transcribe_speech(file: UploadFile = File(...)):
             speech_segments = enhance_audio(
                 input_path=input_file_node,
                 output_path=output_file_node,
-                generate_visualizations=True
+                generate_visualizations=False
             )
 
         except Exception as e:
@@ -158,6 +159,12 @@ async def transcribe_speech(file: UploadFile = File(...)):
             sample_rate, enhanced_audio = wavfile.read(
                 output_file_node
             )
+
+            print("\nMAIN.PY AUDIO INFO")
+            print("dtype:", enhanced_audio.dtype)
+            print("shape:", enhanced_audio.shape)
+            print("min:", enhanced_audio.min())
+            print("max:", enhanced_audio.max())
 
             print("\nSpeech Segments:")
             print(speech_segments)
@@ -181,7 +188,21 @@ async def transcribe_speech(file: UploadFile = File(...)):
 
                 print(f"\nTranscribing Chunk {i}...")
 
+                # Chunk is already natively at 16000 Hz here
                 chunk = chunk.astype(np.float32) / 32768.0
+
+                print("\nWHISPER INPUT INFO")
+                print("dtype:", chunk.dtype)
+                print("shape:", chunk.shape)
+                print("min:", np.min(chunk))
+                print("max:", np.max(chunk))
+                print("mean abs:", np.mean(np.abs(chunk)))
+
+                wavfile.write(
+                    "debug_chunk.wav",
+                    16000,
+                    (chunk * 32767).astype(np.int16)
+                )
 
                 segments, info = model.transcribe(
                     chunk,
