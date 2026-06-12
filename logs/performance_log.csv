@@ -7,3 +7,9 @@ timestamp,function,duration_seconds
 2026-06-12 02:31:44.798029,enhance_audio,0.3834
 2026-06-12 02:34:16.259781,apply_high_pass_filter,0.0026,30720
 2026-06-12 02:34:16.620730,enhance_audio,0.3769,
+2026-06-12 10:39:02.156373,apply_high_pass_filter,0.0121,26880
+2026-06-12 10:39:02.778009,enhance_audio,0.6503,
+2026-06-12 10:54:22.143854,apply_high_pass_filter,0.002,54720
+2026-06-12 10:54:25.187769,enhance_audio,7.2703,
+2026-06-12 10:58:04.348778,apply_high_pass_filter,0.002,66240
+2026-06-12 10:58:05.953653,enhance_audio,4.087,

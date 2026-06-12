@@ -90,7 +90,7 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
 
     print("INPUT mean abs =", np.mean(np.abs(data)))
     print("Starting noise reduction...")
-    data = reduce_noise_auto(data, sample_rate, use_rnnoise=False)
+    data = reduce_noise_auto(data, sample_rate, use_rnnoise=True)
     print("Noise reduction completed")
 
 
@@ -145,15 +145,8 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
     print("mean abs:", np.mean(np.abs(data)))
     if data.dtype != np.int16:
 
-        data = np.clip(
-            data,
-            -1.0,
-            1.0
-        )
-
-        data = (
-            data * 32767
-        ).astype(np.int16)
+        data = np.clip(data,-1.0,1.0)
+        data = (data * 32767).astype(np.int16)
       
     print("\nAFTER FINAL CONVERSION")
     print("dtype:", data.dtype)

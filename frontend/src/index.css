@@ -128,3 +128,8 @@ html, body, #root {
 .text-placeholder {
   color: #6b7280;
 }
+
+.partial-text {
+  color: #9ca3af;
+  font-style: italic;
+}

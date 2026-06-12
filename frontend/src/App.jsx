@@ -1,36 +1,77 @@
 import React, { useState, useRef } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, API_WS_URL } from './config';
 import './index.css'; // Importing our separate stylesheet
 
 export default function App() {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [partialTranscript, setPartialTranscript] = useState("");
   const [status, setStatus] = useState("Ready");
   
   const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const wsRef = useRef(null);
 
   const startRecording = async () => {
-    audioChunksRef.current = [];
+    setTranscript("");
+    setPartialTranscript("");
+    setStatus("Connecting to server...");
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      // Clean up protocol for WebSocket connection
+      const wsUrl = `${API_WS_URL.replace("http://", "ws://").replace("https://", "wss://")}/api/stream-transcribe`;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            ws.send(event.data);
+          }
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorderRef.current.start(500); // Send audio slice every 500ms
+        setRecording(true);
+        setStatus("EchoNet is transcribing live...");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "final") {
+            setTranscript(prev => prev ? prev + " " + data.text : data.text);
+            setPartialTranscript("");
+          } else if (data.type === "partial") {
+            setPartialTranscript(data.text);
+          } else if (data.type === "closed") {
+            if (wsRef.current) {
+              wsRef.current.close();
+            }
+            setStatus("Transcription completed!");
+          } else if (data.type === "error") {
+            setStatus(`Error: ${data.message}`);
+          }
+        } catch (e) {
+          console.error("Failed to parse WebSocket message:", e);
         }
       };
 
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await sendAudioToModelBackend(audioBlob);
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setStatus("Error: WebSocket connection failed.");
       };
 
-      mediaRecorderRef.current.start();
-      setRecording(true);
-      setStatus("EchoNet is listening carefully...");
+      ws.onclose = () => {
+        console.log("WebSocket connection closed");
+      };
+
     } catch (err) {
       console.error("Microphone access initialization error:", err);
       setStatus("Error: Browser microphone permissions blocked or unsupported.");
@@ -40,42 +81,31 @@ export default function App() {
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setRecording(false);
-      setStatus("Processing audio arrays through model nodes...");
-    }
-  };
-
-  const sendAudioToModelBackend = async (audioBlob) => {
-    const formData = new FormData();
-    formData.append("file", audioBlob, "user_voice.webm");
-
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/transcribe`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      setStatus("Finishing up live transcription...");
       
-      if (response.data.transcript) {
-        setTranscript(response.data.transcript);
-        setStatus("Transcription successfully parsed!");
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "stop" }));
       } else {
-        setTranscript("[No legible tokens emitted by model layers]");
-        setStatus("Complete with low confidence.");
+        setStatus("Transcription completed!");
       }
-    } catch (error) {
-      console.error("Networking error during inference sequence:", error);
-      setStatus("Error: Failed to communicate with the model backend.");
     }
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(transcript);
+    const fullText = partialTranscript 
+      ? `${transcript} ${partialTranscript}`.trim() 
+      : transcript;
+    navigator.clipboard.writeText(fullText);
     alert("Transcript text successfully mapped to clipboard!");
   };
 
   const downloadTranscript = () => {
+    const fullText = partialTranscript 
+      ? `${transcript} ${partialTranscript}`.trim() 
+      : transcript;
     const element = document.createElement("a");
-    const file = new Blob([transcript], { type: 'text/plain;charset=utf-8' });
+    const file = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
     element.href = URL.createObjectURL(file);
     element.download = "echonet_transcript.txt";
     document.body.appendChild(element);
@@ -101,18 +131,20 @@ export default function App() {
           </button>
         )}
 
-        <button onClick={copyToClipboard} disabled={!transcript} className="btn btn-utility">
+        <button onClick={copyToClipboard} disabled={!transcript && !partialTranscript} className="btn btn-utility">
           Copy Text
         </button>
         
-        <button onClick={downloadTranscript} disabled={!transcript} className="btn btn-utility">
+        <button onClick={downloadTranscript} disabled={!transcript && !partialTranscript} className="btn btn-utility">
           Download .txt
         </button>
       </div>
 
       <h3 className="transcript-header">Output Transcript Canvas</h3>
-      <div className={`transcript-display ${transcript ? "text-active" : "text-placeholder"}`}>
-        {transcript || "Speak clearly through your mic... your custom neural sequence transcript will print here out live."}
+      <div className={`transcript-display ${(transcript || partialTranscript) ? "text-active" : "text-placeholder"}`}>
+        {transcript}
+        {partialTranscript && <span className="partial-text"> {partialTranscript}</span>}
+        {!transcript && !partialTranscript && "Speak clearly through your mic... your custom neural sequence transcript will print here out live."}
       </div>
     </div>
   );
