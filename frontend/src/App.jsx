@@ -27,13 +27,12 @@ export default function App() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Enforce 16000Hz Sample Rate for Whisper
+        // Enforce 16000Hz Sample Rate for Whisper. The '1' args enforce Mono.
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioContext = new AudioContext({ sampleRate: 16000 });
         audioContextRef.current = audioContext;
         
         const source = audioContext.createMediaStreamSource(stream);
-        // 4096 buffer size sends a chunk roughly every ~250ms
         const processor = audioContext.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
         
@@ -41,7 +40,6 @@ export default function App() {
           if (ws.readyState === WebSocket.OPEN) {
             // Get the raw float32 array
             const float32Array = e.inputBuffer.getChannelData(0);
-            // Send the raw bytes down the pipe!
             ws.send(float32Array.buffer);
           }
         };

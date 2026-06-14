@@ -9,4 +9,5 @@ noisereduce
 matplotlib
 silero-vad
 websockets
-
+deepfilternet
+torchaudio
