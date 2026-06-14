@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { API_BASE_URL, API_WS_URL } from './config';
-import './index.css'; // Importing our separate stylesheet
+import './index.css';
 
 export default function App() {
   const [recording, setRecording] = useState(false);
@@ -8,7 +8,9 @@ export default function App() {
   const [partialTranscript, setPartialTranscript] = useState("");
   const [status, setStatus] = useState("Ready");
   
-  const mediaRecorderRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const processorRef = useRef(null);
+  const streamRef = useRef(null);
   const wsRef = useRef(null);
 
   const startRecording = async () => {
@@ -18,26 +20,35 @@ export default function App() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       
-      // Clean up protocol for WebSocket connection
       const wsUrl = `${API_WS_URL.replace("http://", "ws://").replace("https://", "wss://")}/api/stream-transcribe`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        // Enforce 16000Hz Sample Rate for Whisper
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext({ sampleRate: 16000 });
+        audioContextRef.current = audioContext;
         
-        mediaRecorderRef.current.ondataavailable = (event) => {
-          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(event.data);
+        const source = audioContext.createMediaStreamSource(stream);
+        // 4096 buffer size sends a chunk roughly every ~250ms
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        processorRef.current = processor;
+        
+        processor.onaudioprocess = (e) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            // Get the raw float32 array
+            const float32Array = e.inputBuffer.getChannelData(0);
+            // Send the raw bytes down the pipe!
+            ws.send(float32Array.buffer);
           }
         };
 
-        mediaRecorderRef.current.onstop = () => {
-          stream.getTracks().forEach(track => track.stop());
-        };
+        source.connect(processor);
+        processor.connect(audioContext.destination);
 
-        mediaRecorderRef.current.start(500); // Send audio slice every 500ms
         setRecording(true);
         setStatus("EchoNet is transcribing live...");
       };
@@ -79,10 +90,19 @@ export default function App() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
+    if (recording) {
       setRecording(false);
       setStatus("Finishing up live transcription...");
+      
+      if (processorRef.current) {
+        processorRef.current.disconnect();
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "stop" }));

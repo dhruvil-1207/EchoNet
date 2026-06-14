@@ -90,7 +90,7 @@ def enhance_audio(input_path, output_path, generate_visualizations=False):
 
     print("INPUT mean abs =", np.mean(np.abs(data)))
     print("Starting noise reduction...")
-    data = reduce_noise_auto(data, sample_rate, use_rnnoise=True)
+    data = reduce_noise_auto(data, sample_rate, use_rnnoise=False)
     print("Noise reduction completed")
 
 

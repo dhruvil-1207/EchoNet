@@ -9,6 +9,4 @@ noisereduce
 matplotlib
 silero-vad
 websockets
-pyrnnoise
-audioop-lts
 

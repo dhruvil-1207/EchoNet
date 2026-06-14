@@ -38,6 +38,9 @@ from audio_pipeline.vad.vad_detector import detect_speech_segments
 from audio_pipeline.denoising.auto_noise_reducer import reduce_noise_auto
 from backend.services.transcription_service import transcribe_audio_chunk
 
+# Import the optimized session handler
+from backend.services.processing_service import TranscriptionSession
+
 app = FastAPI(
     title="EchoNet Backend Gateway",
     description="FastAPI ingestion pipeline for custom high-speed Speech-to-Text inference"
@@ -234,13 +237,10 @@ async def transcribe_speech(file: UploadFile = File(...)):
 
 @app.websocket("/api/stream-transcribe")
 async def stream_transcribe(websocket: WebSocket):
-    import io
     await websocket.accept()
     print("WebSocket client connected for streaming transcription")
     
-    accumulated_bytes = bytearray()
-    last_finalized_sample_index = 0
-    finalized_transcripts = []
+    session = TranscriptionSession()
     
     try:
         import json
@@ -249,45 +249,21 @@ async def stream_transcribe(websocket: WebSocket):
             
             if "bytes" in message:
                 data = message["bytes"]
-                accumulated_bytes.extend(data)
-                print(f"[WS] Received chunk of {len(data)} bytes. Accumulated: {len(accumulated_bytes)} bytes.")
+                # Directly pipe raw Float32 PCM to our session processor
+                result = await session.process_chunk(data)
+                if result:
+                    await websocket.send_json(result)
+                    
             elif "text" in message:
                 text_data = message["text"]
                 try:
                     command = json.loads(text_data)
                     if command.get("type") == "stop":
                         print("[WS] Received stop signal. Finalizing remaining audio...")
-                        try:
-                            # Try to decode the final accumulated buffer
-                            audio_segment = AudioSegment.from_file(io.BytesIO(accumulated_bytes), format="webm")
-                            audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
-                            samples = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
-                            if audio_segment.sample_width == 2:
-                                samples /= 32768.0
-                            elif audio_segment.sample_width == 4:
-                                samples /= 2147483648.0
-                            else:
-                                samples /= 128.0
-                                
-                            total_samples = len(samples)
-                            if total_samples > last_finalized_sample_index:
-                                segment_audio = samples[last_finalized_sample_index:]
-                                try:
-                                    denoised_audio = reduce_noise_auto(segment_audio, 16000, use_rnnoise=True)
-                                except Exception as e:
-                                    print(f"RNNoise failed on final chunk: {e}. Using raw.")
-                                    denoised_audio = segment_audio
-                                    
-                                text = transcribe_audio_chunk(denoised_audio)
-                                if text:
-                                    finalized_transcripts.append(text)
-                                    await websocket.send_json({
-                                        "type": "final",
-                                        "text": text,
-                                        "segment_index": len(finalized_transcripts) - 1
-                                    })
-                        except Exception as e:
-                            print(f"[WS] Final decode failed: {e}")
+                        
+                        final_result = await session.flush()
+                        if final_result:
+                            await websocket.send_json(final_result)
                         
                         await websocket.send_json({"type": "closed"})
                         break
@@ -296,74 +272,15 @@ async def stream_transcribe(websocket: WebSocket):
                 continue
             else:
                 break
-                
-            try:
-                # Decode accumulated audio using pydub
-                audio_segment = AudioSegment.from_file(io.BytesIO(accumulated_bytes), format="webm")
-                audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
-                
-                samples = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
-                if audio_segment.sample_width == 2:
-                    samples /= 32768.0
-                elif audio_segment.sample_width == 4:
-                    samples /= 2147483648.0
-                else:
-                    samples /= 128.0
-            except Exception as e:
-                # Log the exception for visibility
-                print(f"[WS] Decoding failed: {e}")
-                continue
-                
-            total_samples = len(samples)
-            speech_segments = detect_speech_segments(samples, 16000)
-            
-            for idx, seg in enumerate(speech_segments):
-                start_s = seg["start"]
-                end_s = seg["end"]
-                
-                if end_s <= last_finalized_sample_index:
-                    continue
-                    
-                is_last_segment = (idx == len(speech_segments) - 1)
-                silence_passed = (total_samples - end_s) >= 12000  # 750ms silence threshold
-                
-                if not is_last_segment or silence_passed:
-                    segment_audio = samples[start_s:end_s]
-                    
-                    try:
-                        denoised_audio = reduce_noise_auto(segment_audio, 16000, use_rnnoise=True)
-                    except Exception as e:
-                        print(f"Denoising failed: {e}. Using raw segment.")
-                        denoised_audio = segment_audio
-                        
-                    text = transcribe_audio_chunk(denoised_audio)
-                    if text:
-                        finalized_transcripts.append(text)
-                        await websocket.send_json({
-                            "type": "final",
-                            "text": text,
-                            "segment_index": len(finalized_transcripts) - 1
-                        })
-                    
-                    last_finalized_sample_index = end_s
-            
-            # Handle partial transcription of active segment
-            if len(speech_segments) > 0:
-                last_seg = speech_segments[-1]
-                if last_seg["start"] >= last_finalized_sample_index:
-                    active_start = last_seg["start"]
-                    active_audio = samples[active_start:]
-                    
-                    if len(active_audio) >= 8000:  # At least 500ms of active audio
-                        partial_text = transcribe_audio_chunk(active_audio)
-                        if partial_text:
-                            await websocket.send_json({
-                                "type": "partial",
-                                "text": partial_text
-                            })
                             
     except WebSocketDisconnect:
         print("WebSocket client disconnected")
+        final_result = await session.flush()
+        if final_result:
+            try:
+                await websocket.send_json(final_result)
+            except Exception:
+                pass
     except Exception as ws_err:
         print(f"WebSocket error: {ws_err}")
         try:
