@@ -38,7 +38,7 @@ class StreamingDeepFilter:
         tensor_48k = self.resample_up(tensor_16k)
         
         # 2. Scrub noise (This automatically updates df_state for continuous streaming)
-        enhanced_48k = enhance(self.model, self.df_state, tensor_48k)
+        enhanced_48k = enhance(self.model, self.df_state, tensor_48k, atten_lim_db=100)
         
         # 3. Downsample back to 16kHz for VAD and Whisper
         enhanced_16k = self.resample_down(enhanced_48k)

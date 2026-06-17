@@ -10,6 +10,7 @@ if hasattr(model, 'to'):
 class StreamingVAD:
     """ Used by preocessing_service.py for live WebSocket streaming """
     def __init__(self, sample_rate=16000, threshold=0.5, min_silence_duration_ms=700, speech_pad_ms=100):
+        #speech_pad_ms is the extra ms we add to the speech to make sure we capture the whole word (for example, when we speak cats, 's' is very silent so we might miss it)
         self.iterator = VADIterator(
             model,
             threshold=threshold,

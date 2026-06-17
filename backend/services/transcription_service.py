@@ -8,7 +8,7 @@ download_root = "/content/drive/MyDrive/EchoNetCache/whisper"
 os.makedirs(download_root, exist_ok=True)
 print("Loading Faster-Whisper Medium Model locally...")
 model = WhisperModel(
-    "turbo", 
+    "medium", 
     device="cuda",
     compute_type="float16",
     download_root=download_root
