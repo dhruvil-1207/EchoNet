@@ -8,6 +8,7 @@ from WebSockets, coordinates denoising, voice activity detection, and transcript
 import numpy as np
 import asyncio
 import datetime
+import time
 
 # Core AI Pipeline Imports
 from audio_pipeline.preprocessing.high_pass_filter import apply_high_pass_filter
@@ -163,10 +164,17 @@ class TranscriptionSession:
             return None
         
         context = " ".join(self._finalized)[-200:] if self._finalized else None
-        text = await asyncio.to_thread(transcribe_audio_chunk, audio, beam_size=1, initial_prompt=context)
         
+        # --- BENCHMARK STOPWATCH ---
+        start_time = time.time()
+        text = await asyncio.to_thread(transcribe_audio_chunk, audio, beam_size=1, initial_prompt=context)
+        latency_ms = (time.time() - start_time) * 1000
+        print(f"⚡ [Benchmark] Partial Latency: {latency_ms:.1f} ms")
+        # ---------------------------
+
         if not text: return None
         return {"type": "partial", "text": text}
+
 
     async def _finalize(self) -> dict | None:
         """
@@ -193,11 +201,22 @@ class TranscriptionSession:
 
         # 3. Highly-accurate transcription
         context = " ".join(self._finalized)[-200:] if self._finalized else None
-        text = await asyncio.to_thread(transcribe_audio_chunk, audio, beam_size=5, initial_prompt=context)
         
+        # --- BENCHMARK STOPWATCH ---
+        start_time = time.time()
+        text = await asyncio.to_thread(transcribe_audio_chunk, audio, beam_size=5, initial_prompt=context)
+        latency_ms = (time.time() - start_time) * 1000
+        
+        audio_duration_sec = len(audio) / _SAMPLE_RATE
+        rtf = (latency_ms / 1000) / audio_duration_sec if audio_duration_sec > 0 else 0
+        
+        print(f"🔥 [Benchmark] Final Latency: {latency_ms:.1f} ms | Audio Length: {audio_duration_sec:.1f}s | RTF: {rtf:.2f}x")
+        # ---------------------------
+
         if not text: return None
 
         self._finalized.append(text)
+
         
         # 4. Generate the Diagnostic PNG Graphs in the background without causing lag
         if ENABLE_VISUALIZATIONS:
